@@ -3,7 +3,11 @@ package main
 import "github.com/dimitarkovachev/golang-at-ocado/proj/sort/gen"
 
 func getEmptyService() *sortingService {
-	return &sortingService{}
+	s := &sortingService{}
+	s.initChannel()
+	s.initRoutineHelper()
+
+	return s
 }
 
 func getLoadedService() *sortingService {

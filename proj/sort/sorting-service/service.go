@@ -10,20 +10,9 @@ import (
 )
 
 func newSortingService() gen.SortingRobotServer {
-	s := &sortingService{
-		c: make(chan bool),
-	}
-
-	go func(c chan bool) {
-		c <- false
-	}(s.c)
-
-	go func(c chan bool) {
-		for {
-			cv := <-c
-			c <- cv
-		}
-	}(s.c)
+	s := &sortingService{}
+	s.initChannel()
+	s.initRoutineHelper()
 
 	return s
 }
@@ -113,4 +102,21 @@ func (s *sortingService) block() {
 func (s *sortingService) unblock() {
 	<-s.c
 	s.c <- false
+}
+
+func (s *sortingService) initChannel() {
+	s.c = make(chan bool)
+}
+
+func (s *sortingService) initRoutineHelper() {
+	go func(c chan bool) {
+		c <- false
+	}(s.c)
+
+	go func(c chan bool) {
+		for {
+			cv := <-c
+			c <- cv
+		}
+	}(s.c)
 }
