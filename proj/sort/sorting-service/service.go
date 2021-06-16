@@ -4,18 +4,32 @@ import (
 	"context"
 	"errors"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/dimitarkovachev/golang-at-ocado/proj/sort/gen"
 )
 
 func newSortingService() gen.SortingRobotServer {
-	return &sortingService{}
+	s := &sortingService{
+		c: make(chan bool),
+	}
+
+	go func(c chan bool) {
+		c <- false
+	}(s.c)
+
+	go func(c chan bool) {
+		for {
+			cv := <-c
+			c <- cv
+		}
+	}(s.c)
+
+	return s
 }
 
 type sortingService struct {
-	mu           sync.Mutex
+	c            chan bool
 	items        []*gen.Item
 	itemSelected *gen.Item
 }
@@ -36,8 +50,8 @@ func (s *sortingService) MoveItem(ctx context.Context, reqPayload *gen.MoveItemR
 }
 
 func (s *sortingService) loadItems(reqPayload *gen.LoadItemsRequest) (*gen.LoadItemsResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.block()
+	defer s.unblock()
 
 	s.items = append(s.items, reqPayload.Items...)
 
@@ -45,8 +59,8 @@ func (s *sortingService) loadItems(reqPayload *gen.LoadItemsRequest) (*gen.LoadI
 }
 
 func (s *sortingService) selectItem() (*gen.SelectItemResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.block()
+	defer s.unblock()
 
 	if s.itemSelected != nil {
 		return nil, errors.New("item already selected in hand")
@@ -70,8 +84,8 @@ func (s *sortingService) selectItem() (*gen.SelectItemResponse, error) {
 }
 
 func (s *sortingService) moveItem(reqPayload *gen.MoveItemRequest) (*gen.MoveItemResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.block()
+	defer s.unblock()
 
 	if s.itemSelected == nil {
 		return nil, errors.New("no item in hand")
@@ -80,4 +94,23 @@ func (s *sortingService) moveItem(reqPayload *gen.MoveItemRequest) (*gen.MoveIte
 	s.itemSelected = nil
 
 	return &gen.MoveItemResponse{}, nil
+}
+
+func (s *sortingService) block() {
+	blocked := true
+
+	for blocked {
+		blocked = <-s.c
+		if blocked {
+			s.c <- blocked
+			continue
+		}
+	}
+
+	s.c <- true
+}
+
+func (s *sortingService) unblock() {
+	<-s.c
+	s.c <- false
 }
