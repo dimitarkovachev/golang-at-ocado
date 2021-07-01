@@ -3,7 +3,9 @@ package main
 import "github.com/dimitarkovachev/golang-at-ocado/proj/sort/gen"
 
 func getEmptyService() *sortingService {
-	return &sortingService{}
+	return &sortingService{
+		cubbyToItems: make(map[string][]*gen.Item),
+	}
 }
 
 func getLoadedService() *sortingService {
